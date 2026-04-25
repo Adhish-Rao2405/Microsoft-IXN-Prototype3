@@ -8,19 +8,15 @@ from src.brain.uncertainty import assess_uncertainty
 from src.eval.benchmark_loader import load_benchmark
 from src.eval.metrics_logger import write_run_record
 from src.eval.scoring import score_semantics
+from src.schema.action_schema import validate_action_plan
 
 
-def parse_planned_actions(raw_text: str) -> list[dict] | None:
+def _parse_raw_json(raw_text: str) -> tuple[object | None, bool]:
+    """Return (parsed_object, parse_ok)."""
     try:
-        parsed = json.loads(raw_text)
-        if isinstance(parsed, list):
-            return parsed
-        if isinstance(parsed, dict) and "actions" in parsed:
-            actions = parsed["actions"]
-            return actions if isinstance(actions, list) else None
-        return None
+        return json.loads(raw_text), True
     except json.JSONDecodeError:
-        return None
+        return None, False
 
 
 def run_benchmark(
@@ -45,7 +41,20 @@ def run_benchmark(
             )
             response = client.generate_plan(request)
 
-            planned_actions = parse_planned_actions(response.raw_text)
+            # --- Parse raw JSON ---
+            parsed_json, parse_ok = _parse_raw_json(response.raw_text)
+            if not parse_ok:
+                schema_valid = False
+                schema_errors = ["json_parse_error"]
+                planned_actions = None
+                pre_schema_failure = "parse_error"
+            else:
+                # --- Schema validation ---
+                schema_result = validate_action_plan(parsed_json)
+                schema_valid = schema_result.valid
+                schema_errors = schema_result.errors
+                planned_actions = schema_result.normalized_actions if schema_valid else None
+                pre_schema_failure = None if schema_valid else "schema_error"
 
             uncertainty = assess_uncertainty(command)
             semantic = score_semantics(
@@ -53,6 +62,15 @@ def run_benchmark(
                 planned_actions=planned_actions,
                 uncertainty_result=uncertainty,
             )
+
+            # Prefer semantic scoring failure mode when schema already passed;
+            # otherwise keep the earlier parse/schema error.
+            if pre_schema_failure is not None:
+                effective_failure = pre_schema_failure
+            elif semantic.failure_mode in (None, "none"):
+                effective_failure = None
+            else:
+                effective_failure = semantic.failure_mode
 
             record = {
                 "run_id": f"{timestamp}_{item['id']}_{model}",
@@ -63,7 +81,8 @@ def run_benchmark(
                 "model": model,
                 "latency_ms": response.latency_ms,
                 "raw_response": response.raw_text,
-                "schema_valid": True,
+                "schema_valid": schema_valid,
+                "schema_errors": schema_errors,
                 "safety_valid": True,
                 "uncertainty_flag": uncertainty.uncertain,
                 "uncertainty_reasons": uncertainty.reasons,
@@ -71,9 +90,7 @@ def run_benchmark(
                 "semantic_score": semantic.score,
                 "executed": False,
                 "execution_success": False,
-                "failure_mode": None
-                if semantic.failure_mode in (None, "none")
-                else semantic.failure_mode,
+                "failure_mode": effective_failure,
             }
             write_run_record(output_path, record)
             records_written += 1
