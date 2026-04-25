@@ -9,6 +9,7 @@ from src.eval.benchmark_loader import load_benchmark
 from src.eval.metrics_logger import write_run_record
 from src.eval.scoring import score_semantics
 from src.schema.action_schema import validate_action_plan
+from src.brain.safety import validate_safety
 
 
 def _parse_raw_json(raw_text: str) -> tuple[object | None, bool]:
@@ -43,6 +44,8 @@ def run_benchmark(
 
             # --- Parse raw JSON ---
             parsed_json, parse_ok = _parse_raw_json(response.raw_text)
+            safety_valid: bool = False
+            safety_violations: list[str] = []
             if not parse_ok:
                 schema_valid = False
                 schema_errors = ["json_parse_error"]
@@ -53,8 +56,18 @@ def run_benchmark(
                 schema_result = validate_action_plan(parsed_json)
                 schema_valid = schema_result.valid
                 schema_errors = schema_result.errors
-                planned_actions = schema_result.normalized_actions if schema_valid else None
-                pre_schema_failure = None if schema_valid else "schema_error"
+                if not schema_valid:
+                    planned_actions = None
+                    pre_schema_failure = "schema_error"
+                    safety_valid = False
+                    safety_violations: list[str] = []
+                else:
+                    # --- Safety validation ---
+                    safety_result = validate_safety(schema_result.normalized_actions)
+                    safety_valid = safety_result.safe
+                    safety_violations = safety_result.violations
+                    planned_actions = safety_result.safe_actions if safety_valid else None
+                    pre_schema_failure = None if safety_valid else "safety_error"
 
             uncertainty = assess_uncertainty(command)
             semantic = score_semantics(
@@ -83,7 +96,8 @@ def run_benchmark(
                 "raw_response": response.raw_text,
                 "schema_valid": schema_valid,
                 "schema_errors": schema_errors,
-                "safety_valid": True,
+                "safety_valid": safety_valid,
+                "safety_violations": safety_violations,
                 "uncertainty_flag": uncertainty.uncertain,
                 "uncertainty_reasons": uncertainty.reasons,
                 "uncertainty_score": uncertainty.score,

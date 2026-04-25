@@ -6,6 +6,7 @@ import pytest
 
 from src.eval.run_benchmark import _parse_raw_json, run_benchmark
 from src.schema.action_schema import validate_action_plan
+from src.brain.safety import validate_safety
 
 
 def test_run_benchmark_generates_records_for_both_models(tmp_path) -> None:
@@ -76,3 +77,59 @@ def test_schema_errors_present_when_invalid() -> None:
     result = validate_action_plan([{"action": "pick"}])
     assert result.valid is False
     assert result.errors != []
+
+
+# ---------------------------------------------------------------------------
+# Phase 3.3 — safety_valid and safety_violations are real, not hardcoded
+# ---------------------------------------------------------------------------
+
+def test_all_records_have_safety_fields(tmp_path) -> None:
+    output_path = tmp_path / "runs" / "benchmark.jsonl"
+    run_benchmark(
+        dataset_path="datasets/benchmark_v1.json",
+        output_path=str(output_path),
+        models=["fake_slm"],
+    )
+    entries = [
+        json.loads(line)
+        for line in output_path.read_text(encoding="utf-8").strip().splitlines()
+    ]
+    for entry in entries:
+        assert "safety_valid" in entry
+        assert "safety_violations" in entry
+        assert isinstance(entry["safety_violations"], list)
+
+
+def test_c01_fake_slm_safety_valid(tmp_path) -> None:
+    output_path = tmp_path / "runs" / "benchmark.jsonl"
+    run_benchmark(
+        dataset_path="datasets/benchmark_v1.json",
+        output_path=str(output_path),
+        models=["fake_slm"],
+    )
+    entries = [
+        json.loads(line)
+        for line in output_path.read_text(encoding="utf-8").strip().splitlines()
+    ]
+    c01 = next(e for e in entries if e["command_id"] == "C01")
+    # fake_slm returns a valid pick — must pass safety too.
+    assert c01["safety_valid"] is True
+    assert c01["safety_violations"] == []
+
+
+def test_safety_validator_rejects_unknown_object_directly() -> None:
+    result = validate_safety([{"action": "pick", "object": "scalpel"}])
+    assert result.safe is False
+    assert any("unsafe_object" in v for v in result.violations)
+
+
+def test_safety_validator_rejects_out_of_bounds_coordinates() -> None:
+    result = validate_safety([{"action": "moveee", "target_xyz": [999.9, 0.0, 0.0]}])
+    assert result.safe is False
+    assert any("out_of_bounds" in v for v in result.violations)
+
+
+def test_safety_validator_safe_actions_not_none_on_valid_plan() -> None:
+    result = validate_safety([{"action": "pick", "object": "medicine_cup"}])
+    assert result.safe is True
+    assert result.safe_actions is not None
