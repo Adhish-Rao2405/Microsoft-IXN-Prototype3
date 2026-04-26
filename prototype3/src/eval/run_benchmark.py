@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import argparse
 from datetime import datetime, timezone
 import json
+from dataclasses import dataclass
 
+from src.brain.foundry_planner import FoundryPlanner
 from src.brain.model_client import ModelClient, ModelRequest
 from src.brain.uncertainty import assess_uncertainty
 from src.eval.benchmark_loader import load_benchmark
@@ -20,54 +23,107 @@ def _parse_raw_json(raw_text: str) -> tuple[object | None, bool]:
         return None, False
 
 
+@dataclass
+class RunnerPlanResult:
+    success: bool
+    parsed_output: object | None
+    raw_output: str | None
+    error: str | None
+    planning_latency_ms: int
+
+
+class _FakePlanner:
+    def __init__(self, model_name: str) -> None:
+        self._model_name = model_name
+        self._client = ModelClient()
+
+    def plan(self, command: str, scene_state: dict | None = None) -> RunnerPlanResult:
+        del scene_state
+        request = ModelRequest(command=command, model_name=self._model_name)
+        response = self._client.generate_plan(request)
+
+        parsed_output, parse_ok = _parse_raw_json(response.raw_text)
+        return RunnerPlanResult(
+            success=response.success,
+            parsed_output=parsed_output if parse_ok else None,
+            raw_output=response.raw_text,
+            error=response.error if response.error else (None if parse_ok else "parse_error"),
+            planning_latency_ms=int(response.latency_ms),
+        )
+
+
+def _parse_foundry_model_spec(model_name: str) -> tuple[str, str] | None:
+    parts = model_name.split(":")
+    if len(parts) != 3 or parts[0] != "foundry":
+        return None
+    return parts[1], parts[2]
+
+
+def _build_planner(model_name: str):
+    if model_name in {"fake_slm", "fake_llm"}:
+        return _FakePlanner(model_name)
+
+    foundry_spec = _parse_foundry_model_spec(model_name)
+    if foundry_spec is not None:
+        alias, device = foundry_spec
+        return FoundryPlanner(model_alias=alias, device=device)
+
+    raise ValueError(f"Unsupported model backend: {model_name}")
+
+
 def run_benchmark(
     dataset_path: str = "datasets/benchmark_v1.json",
     output_path: str = "results/runs/benchmark.jsonl",
     models: list[str] | None = None,
+    command_ids: list[str] | None = None,
 ) -> int:
     items = load_benchmark(dataset_path)
-    selected_models = models or ["fake_slm", "fake_llm"]
+    if command_ids:
+        wanted = {cid.strip() for cid in command_ids if cid.strip()}
+        items = [item for item in items if item["id"] in wanted]
 
-    client = ModelClient()
+    selected_models = models or ["fake_slm", "fake_llm"]
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
     records_written = 0
     for model in selected_models:
+        planner = _build_planner(model)
         for item in items:
             command = item["command"]
 
-            request = ModelRequest(
-                command=command,
-                model_name=model,
-            )
-            response = client.generate_plan(request)
+            plan_result = planner.plan(command=command, scene_state={})
+            parsed_json = plan_result.parsed_output
+            parse_ok = parsed_json is not None
 
-            # --- Parse raw JSON ---
-            parsed_json, parse_ok = _parse_raw_json(response.raw_text)
             safety_valid: bool = False
             safety_violations: list[str] = []
-            if not parse_ok:
+
+            # Planner-level failures are explicit and win failure_mode precedence.
+            planner_failure = plan_result.error
+
+            if planner_failure in {
+                "foundry_connection_error",
+                "foundry_timeout",
+                "foundry_response_error",
+                "unknown_model_error",
+            }:
                 schema_valid = False
-                schema_errors = ["json_parse_error"]
+                schema_errors = [planner_failure]
                 planned_actions = None
-                pre_schema_failure = "parse_error"
+                pre_schema_failure = planner_failure
             else:
-                # --- Schema validation ---
-                schema_result = validate_action_plan(parsed_json)
-                schema_valid = schema_result.valid
-                schema_errors = schema_result.errors
-                if not schema_valid:
+                if not parse_ok:
+                    schema_valid = False
+                    schema_errors = ["json_parse_error"]
                     planned_actions = None
-                    pre_schema_failure = "schema_error"
-                    safety_valid = False
-                    safety_violations: list[str] = []
+                    pre_schema_failure = "parse_error"
                 else:
-                    # --- Safety validation ---
-                    safety_result = validate_safety(schema_result.normalized_actions)
-                    safety_valid = safety_result.safe
-                    safety_violations = safety_result.violations
-                    planned_actions = safety_result.safe_actions if safety_valid else None
-                    pre_schema_failure = None if safety_valid else "safety_error"
+                    # --- Schema validation ---
+                    schema_result = validate_action_plan(parsed_json)
+                    schema_valid = schema_result.valid
+                    schema_errors = schema_result.errors
+                    planned_actions = schema_result.normalized_actions if schema_valid else None
+                    pre_schema_failure = None if schema_valid else "schema_error"
 
             uncertainty = assess_uncertainty(command)
             semantic = score_semantics(
@@ -75,6 +131,15 @@ def run_benchmark(
                 planned_actions=planned_actions,
                 uncertainty_result=uncertainty,
             )
+
+            if schema_valid and planned_actions is not None:
+                # --- Safety validation ---
+                safety_result = validate_safety(planned_actions)
+                safety_valid = safety_result.safe
+                safety_violations = safety_result.violations
+                planned_actions = safety_result.safe_actions if safety_valid else None
+                if not safety_valid:
+                    pre_schema_failure = "safety_error"
 
             # Prefer semantic scoring failure mode when schema already passed;
             # otherwise keep the earlier parse/schema error.
@@ -92,8 +157,9 @@ def run_benchmark(
                 "difficulty": item["difficulty"],
                 "gold_label": item["gold_label"],
                 "model": model,
-                "latency_ms": response.latency_ms,
-                "raw_response": response.raw_text,
+                "latency_ms": plan_result.planning_latency_ms,
+                "planning_latency_ms": plan_result.planning_latency_ms,
+                "raw_response": plan_result.raw_output or "",
                 "schema_valid": schema_valid,
                 "schema_errors": schema_errors,
                 "safety_valid": safety_valid,
@@ -113,7 +179,24 @@ def run_benchmark(
 
 
 def main() -> None:
-    count = run_benchmark()
+    parser = argparse.ArgumentParser(description="Run Prototype 3 benchmark")
+    parser.add_argument("--model", default=None, help="Single model backend to run")
+    parser.add_argument(
+        "--commands",
+        default=None,
+        help="Comma-separated command IDs (e.g., C01,C02,C03)",
+    )
+    parser.add_argument(
+        "--output",
+        default="results/runs/benchmark.jsonl",
+        help="Output JSONL path",
+    )
+    args = parser.parse_args()
+
+    models = [args.model] if args.model else None
+    commands = args.commands.split(",") if args.commands else None
+
+    count = run_benchmark(output_path=args.output, models=models, command_ids=commands)
     print(f"Benchmark run complete. Records written: {count}")
 
 

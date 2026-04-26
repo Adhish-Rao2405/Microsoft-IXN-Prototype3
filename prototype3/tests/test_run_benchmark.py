@@ -35,6 +35,8 @@ def test_run_benchmark_generates_records_for_both_models(tmp_path) -> None:
     for entry in entries:
         assert "schema_errors" in entry
         assert isinstance(entry["schema_errors"], list)
+        assert "planning_latency_ms" in entry
+        assert isinstance(entry["planning_latency_ms"], int)
 
     assert isinstance(entries[0]["semantic_score"], float)
     assert "run_id" in entries[0]
@@ -133,3 +135,51 @@ def test_safety_validator_safe_actions_not_none_on_valid_plan() -> None:
     result = validate_safety([{"action": "pick", "object": "medicine_cup"}])
     assert result.safe is True
     assert result.safe_actions is not None
+
+
+# ---------------------------------------------------------------------------
+# Phase 3.4 — model selection, command filters, and latency logging
+# ---------------------------------------------------------------------------
+
+def test_commands_filter_limits_dataset(tmp_path) -> None:
+    output_path = tmp_path / "runs" / "filtered.jsonl"
+    count = run_benchmark(
+        dataset_path="datasets/benchmark_v1.json",
+        output_path=str(output_path),
+        models=["fake_slm"],
+        command_ids=["C01", "C02", "C03"],
+    )
+
+    assert count == 3
+    entries = [
+        json.loads(line)
+        for line in output_path.read_text(encoding="utf-8").strip().splitlines()
+    ]
+    assert {e["command_id"] for e in entries} == {"C01", "C02", "C03"}
+    assert {e["model"] for e in entries} == {"fake_slm"}
+
+
+def test_model_selection_runs_one_model_only(tmp_path) -> None:
+    output_path = tmp_path / "runs" / "single_model.jsonl"
+    count = run_benchmark(
+        dataset_path="datasets/benchmark_v1.json",
+        output_path=str(output_path),
+        models=["fake_llm"],
+    )
+
+    assert count == 30
+    entries = [
+        json.loads(line)
+        for line in output_path.read_text(encoding="utf-8").strip().splitlines()
+    ]
+    assert {e["model"] for e in entries} == {"fake_llm"}
+
+
+def test_unknown_model_raises_controlled_error(tmp_path) -> None:
+    output_path = tmp_path / "runs" / "unknown_model.jsonl"
+    with pytest.raises(ValueError, match="Unsupported model backend"):
+        run_benchmark(
+            dataset_path="datasets/benchmark_v1.json",
+            output_path=str(output_path),
+            models=["totally_unknown_model"],
+        )
