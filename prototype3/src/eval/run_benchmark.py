@@ -32,6 +32,61 @@ class RunnerPlanResult:
     planning_latency_ms: int
 
 
+@dataclass
+class PreExecutionDecision:
+    rejected: bool
+    rejection_reasons: list[str]
+    execution_eligible: bool
+
+
+def _is_uncertain_or_low_confidence(uncertainty_result) -> bool:
+    return bool(
+        uncertainty_result.uncertain or uncertainty_result.score > 0.0
+    )
+
+
+def _decide_pre_execution(
+    *,
+    schema_valid: bool,
+    semantic_passed: bool,
+    uncertainty_result,
+    safety_valid: bool,
+) -> PreExecutionDecision:
+    if not schema_valid:
+        return PreExecutionDecision(
+            rejected=True,
+            rejection_reasons=["schema_invalid"],
+            execution_eligible=False,
+        )
+
+    if not semantic_passed:
+        return PreExecutionDecision(
+            rejected=True,
+            rejection_reasons=["semantic_mismatch"],
+            execution_eligible=False,
+        )
+
+    if _is_uncertain_or_low_confidence(uncertainty_result):
+        return PreExecutionDecision(
+            rejected=True,
+            rejection_reasons=["uncertain_or_low_confidence"],
+            execution_eligible=False,
+        )
+
+    if not safety_valid:
+        return PreExecutionDecision(
+            rejected=True,
+            rejection_reasons=["safety_violation"],
+            execution_eligible=False,
+        )
+
+    return PreExecutionDecision(
+        rejected=False,
+        rejection_reasons=[],
+        execution_eligible=True,
+    )
+
+
 class _FakePlanner:
     def __init__(self, model_name: str) -> None:
         self._model_name = model_name
@@ -132,23 +187,33 @@ def run_benchmark(
                 uncertainty_result=uncertainty,
             )
 
-            if schema_valid and planned_actions is not None:
+            if (
+                schema_valid
+                and planned_actions is not None
+                and semantic.passed
+                and not _is_uncertain_or_low_confidence(uncertainty)
+            ):
                 # --- Safety validation ---
                 safety_result = validate_safety(planned_actions)
                 safety_valid = safety_result.safe
                 safety_violations = safety_result.violations
                 planned_actions = safety_result.safe_actions if safety_valid else None
-                if not safety_valid:
-                    pre_schema_failure = "safety_error"
+            else:
+                safety_valid = False
 
-            # Prefer semantic scoring failure mode when schema already passed;
-            # otherwise keep the earlier parse/schema error.
+            decision = _decide_pre_execution(
+                schema_valid=schema_valid,
+                semantic_passed=semantic.passed,
+                uncertainty_result=uncertainty,
+                safety_valid=safety_valid,
+            )
+
             if pre_schema_failure is not None:
                 effective_failure = pre_schema_failure
-            elif semantic.failure_mode in (None, "none"):
-                effective_failure = None
+            elif decision.rejected and decision.rejection_reasons:
+                effective_failure = decision.rejection_reasons[0]
             else:
-                effective_failure = semantic.failure_mode
+                effective_failure = None
 
             record = {
                 "run_id": f"{timestamp}_{item['id']}_{model}",
@@ -168,6 +233,9 @@ def run_benchmark(
                 "uncertainty_reasons": uncertainty.reasons,
                 "uncertainty_score": uncertainty.score,
                 "semantic_score": semantic.score,
+                "rejected": decision.rejected,
+                "rejection_reasons": decision.rejection_reasons,
+                "execution_eligible": decision.execution_eligible,
                 "executed": False,
                 "execution_success": False,
                 "failure_mode": effective_failure,
