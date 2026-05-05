@@ -1,6 +1,6 @@
 import json
 
-from src.brain.foundry_planner import FoundryPlanner
+from src.brain.foundry_planner import FoundryPlanner, _HttpFoundryClient
 
 
 class _GoodClient:
@@ -31,6 +31,18 @@ class _SchemaInvalidButJsonClient:
     def generate(self, **kwargs):
         del kwargs
         return json.dumps({"actions": [{"action": "pick"}]})
+
+
+class _FencedJsonClient:
+    def generate(self, **kwargs):
+        del kwargs
+        return "```json\n{\n  \"actions\": []\n}\n```"
+
+
+class _FencedJsonNoLangClient:
+    def generate(self, **kwargs):
+        del kwargs
+        return "\n\n```\n{\"actions\": []}\n```\n"
 
 
 def test_valid_json_response_is_parsed_correctly() -> None:
@@ -105,3 +117,52 @@ def test_unknown_alias_returns_unknown_model_error() -> None:
 
     assert result.success is False
     assert result.error == "unknown_model_error"
+
+
+def test_fenced_json_response_is_parsed_correctly() -> None:
+    planner = FoundryPlanner("qwen2.5-coder-0.5b", client=_FencedJsonClient())
+    result = planner.plan("Pick up the medicine cup", {})
+
+    assert result.success is True
+    assert result.error is None
+    assert result.parsed_output == {"actions": []}
+    assert result.raw_output == "```json\n{\n  \"actions\": []\n}\n```"
+
+
+def test_fenced_json_without_language_is_parsed_correctly() -> None:
+    planner = FoundryPlanner("qwen2.5-coder-0.5b", client=_FencedJsonNoLangClient())
+    result = planner.plan("Pick up the medicine cup", {})
+
+    assert result.success is True
+    assert result.error is None
+    assert result.parsed_output == {"actions": []}
+    assert result.raw_output == "\n\n```\n{\"actions\": []}\n```\n"
+
+
+def test_http_client_uses_env_base_url_for_endpoint(monkeypatch) -> None:
+    monkeypatch.setenv("FOUNDRY_LOCAL_BASE_URL", "http://127.0.0.1:61810")
+    client = _HttpFoundryClient()
+
+    assert client._endpoint == "http://127.0.0.1:61810/v1/chat/completions"
+
+
+def test_http_client_falls_back_to_default_base_url_when_env_unset(monkeypatch) -> None:
+    monkeypatch.delenv("FOUNDRY_LOCAL_BASE_URL", raising=False)
+    client = _HttpFoundryClient()
+
+    assert client._endpoint == "http://127.0.0.1:8080/v1/chat/completions"
+
+
+def test_http_client_builds_full_foundry_model_id_from_alias_and_device() -> None:
+    model_id = _HttpFoundryClient._build_model_id("qwen2.5-coder-0.5b", "cpu")
+
+    assert model_id == "qwen2.5-coder-0.5b-instruct-generic-cpu:4"
+
+
+def test_http_client_keeps_full_foundry_model_id_when_provided() -> None:
+    model_id = _HttpFoundryClient._build_model_id(
+        "qwen2.5-coder-0.5b-instruct-generic-cpu:4",
+        "cpu",
+    )
+
+    assert model_id == "qwen2.5-coder-0.5b-instruct-generic-cpu:4"

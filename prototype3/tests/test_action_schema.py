@@ -136,3 +136,33 @@ def test_closegripper_non_numeric_force_is_invalid() -> None:
     result = validate_action_plan([{"action": "closegripper", "force": "max"}])
     assert result.valid is False
     assert any("invalid_force" in e for e in result.errors)
+
+
+def test_pick_with_extra_confidence_key_is_invalid() -> None:
+    result = validate_action_plan(
+        [{"action": "pick", "object": "medicine_cup", "confidence": 0.9}]
+    )
+    assert result.valid is False
+    assert "action[0].unexpected_key:confidence" in result.errors
+
+
+def test_place_with_extra_reasoning_key_is_invalid() -> None:
+    result = validate_action_plan(
+        [{"action": "place", "target": "handover_zone", "reasoning": "best guess"}]
+    )
+    assert result.valid is False
+    assert "action[0].unexpected_key:reasoning" in result.errors
+
+
+def test_moveee_with_both_target_and_target_xyz_is_invalid() -> None:
+    result = validate_action_plan(
+        [{"action": "moveee", "target": "left_zone", "target_xyz": [0.1, 0.2, 0.3]}]
+    )
+    assert result.valid is False
+    assert any("mutually_exclusive" in e for e in result.errors)
+
+
+def test_reset_with_extra_notes_key_is_invalid() -> None:
+    result = validate_action_plan([{"action": "reset", "notes": "please do this"}])
+    assert result.valid is False
+    assert "action[0].unexpected_key:notes" in result.errors

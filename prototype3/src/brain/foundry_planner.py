@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import os
 import socket
 import time
 from typing import Any, Protocol
@@ -10,11 +11,22 @@ from urllib import request as urlrequest
 
 
 SYSTEM_PROMPT = (
-    "You are a robot task planner. Convert commands to JSON actions only.\n"
-    "Schema: {\"actions\":[{\"action\":\"pick\"|\"place\"|\"moveee\"|"
-    "\"opengripper\"|\"closegripper\"|\"describe_scene\"|\"reset\","
-    "\"parameters\":{}}]}\n"
-    "Output valid JSON only. No explanation."
+    "You are a robot task planner. Output raw JSON only.\n"
+    "Do not output markdown fences. Do not output explanation text.\n"
+    "Return exactly one JSON object with this envelope: {\"actions\":[...]}\n"
+    "Each item in actions must be an object that contains only schema keys for that action.\n"
+    "Allowed action values: pick, place, moveee, opengripper, closegripper, describescene, reset.\n"
+    "Do not invent keys. Do not include parameters, confidence, reasoning, notes, text, comments, or extra fields.\n"
+    "Action shapes:\n"
+    "- pick: {\"action\":\"pick\",\"object\":\"<known object id>\"}\n"
+    "- place: {\"action\":\"place\",\"target\":\"<known zone id>\"}\n"
+    "- moveee (zone): {\"action\":\"moveee\",\"target\":\"<known zone id>\"}\n"
+    "- moveee (xyz): {\"action\":\"moveee\",\"target_xyz\":[0.0,0.0,0.0]}\n"
+    "- opengripper: {\"action\":\"opengripper\"} or {\"action\":\"opengripper\",\"width\":0.04}\n"
+    "- closegripper: {\"action\":\"closegripper\"} or {\"action\":\"closegripper\",\"force\":20.0}\n"
+    "- describescene: {\"action\":\"describescene\"}\n"
+    "- reset: {\"action\":\"reset\"}\n"
+    "Use scene state only to choose existing object and zone identifiers. Never invent object or zone names."
 )
 
 
@@ -43,8 +55,36 @@ class FoundryClientProtocol(Protocol):
 
 
 class _HttpFoundryClient:
-    def __init__(self, endpoint: str = "http://127.0.0.1:8080/v1/chat/completions") -> None:
-        self._endpoint = endpoint
+    DEFAULT_BASE_URL = "http://127.0.0.1:8080"
+    DEFAULT_VARIANT = "instruct"
+    DEFAULT_REVISION = "4"
+
+    def __init__(self, endpoint: str | None = None) -> None:
+        if endpoint is None:
+            base_url = os.getenv("FOUNDRY_LOCAL_BASE_URL", self.DEFAULT_BASE_URL)
+            self._endpoint = self._build_endpoint(base_url)
+        else:
+            self._endpoint = endpoint
+
+    @staticmethod
+    def _build_endpoint(base_url: str) -> str:
+        normalized = base_url.strip().rstrip("/")
+        if normalized.endswith("/v1/chat/completions"):
+            return normalized
+        if normalized.endswith("/v1"):
+            return f"{normalized}/chat/completions"
+        return f"{normalized}/v1/chat/completions"
+
+    @classmethod
+    def _build_model_id(cls, model_alias: str, device: str) -> str:
+        # If caller already provided a full Foundry model ID, use it as-is.
+        if ":" in model_alias and "-generic-" in model_alias:
+            return model_alias
+        normalized_device = device.strip().lower()
+        return (
+            f"{model_alias}-{cls.DEFAULT_VARIANT}-generic-"
+            f"{normalized_device}:{cls.DEFAULT_REVISION}"
+        )
 
     def generate(
         self,
@@ -57,8 +97,9 @@ class _HttpFoundryClient:
         max_tokens: int,
         timeout_s: float,
     ) -> str:
+        model_id = self._build_model_id(model_alias, device)
         body = {
-            "model": f"{model_alias}:{device}",
+            "model": model_id,
             "temperature": temperature,
             "max_tokens": max_tokens,
             "messages": [
@@ -114,6 +155,25 @@ class FoundryPlanner:
         self.timeout_s = timeout_s
         self._client: FoundryClientProtocol = client or _HttpFoundryClient()
 
+    @staticmethod
+    def _strip_markdown_fences(text: str) -> str:
+        stripped = text.strip()
+        if not stripped.startswith("```"):
+            return stripped
+
+        lines = stripped.splitlines()
+        if not lines:
+            return stripped
+
+        first = lines[0].strip().lower()
+        if first not in {"```", "```json"}:
+            return stripped
+
+        if len(lines) >= 2 and lines[-1].strip() == "```":
+            return "\n".join(lines[1:-1]).strip()
+
+        return stripped
+
     def plan(self, command: str, scene_state: dict[str, Any] | None) -> PlanResult:
         start = time.perf_counter()
         if self.model_alias not in self.SUPPORTED_ALIASES:
@@ -138,7 +198,7 @@ class FoundryPlanner:
                 timeout_s=self.timeout_s,
             )
             try:
-                parsed = json.loads(raw_text)
+                parsed = json.loads(self._strip_markdown_fences(raw_text))
                 latency_ms = int((time.perf_counter() - start) * 1000)
                 return PlanResult(
                     success=True,

@@ -12,6 +12,16 @@ SUPPORTED_ACTIONS = {
     "describescene",
 }
 
+_ALLOWED_KEYS_BY_ACTION = {
+    "pick": {"action", "object"},
+    "place": {"action", "target"},
+    "moveee": {"action", "target", "target_xyz"},
+    "opengripper": {"action", "width"},
+    "closegripper": {"action", "force"},
+    "reset": {"action"},
+    "describescene": {"action"},
+}
+
 
 @dataclass
 class SchemaValidationResult:
@@ -33,6 +43,11 @@ def _validate_single_action(action: object, idx: int) -> list[str]:
     if action_name not in SUPPORTED_ACTIONS:
         return [f"action[{idx}].unknown_action:{action_name}"]
 
+    unexpected_keys = set(action.keys()) - _ALLOWED_KEYS_BY_ACTION[action_name]
+    if unexpected_keys:
+        for key in sorted(unexpected_keys):
+            errors.append(f"action[{idx}].unexpected_key:{key}")
+
     if action_name == "pick":
         obj = action.get("object")
         if not isinstance(obj, str):
@@ -48,6 +63,8 @@ def _validate_single_action(action: object, idx: int) -> list[str]:
         target_xyz = action.get("target_xyz")
         if target is None and target_xyz is None:
             errors.append(f"action[{idx}].missing_target_and_target_xyz")
+        if target is not None and target_xyz is not None:
+            errors.append(f"action[{idx}].target_and_target_xyz_mutually_exclusive")
         if target_xyz is not None:
             if (
                 not isinstance(target_xyz, list)
