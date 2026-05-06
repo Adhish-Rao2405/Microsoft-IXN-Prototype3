@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from src.brain.uncertainty import UncertaintyResult
+from src.schema.action_schema import SUPPORTED_ACTIONS
 
 
 @dataclass
@@ -26,6 +27,27 @@ def _action_matches_exact(gold_action: dict, planned_action: dict) -> bool:
     return gold_action == planned_action
 
 
+def _first_failure_mode(gold_actions: list[dict], planned_actions: list[dict]) -> str:
+    """Walk paired (gold, planned) actions and return the first distinguishable
+    failure_mode, or 'semantic_mismatch' as catch-all.
+
+    Called only when lengths are equal and at least one pair does not match exactly.
+    """
+    for gold, got in zip(gold_actions, planned_actions):
+        got_action = got.get("action")
+        if got_action not in SUPPORTED_ACTIONS:
+            return "unsupported_action"
+        if gold.get("action") != got_action:
+            return "wrong_action"
+        if "object" in gold and gold.get("object") != got.get("object"):
+            return "wrong_object"
+        if "target" in gold and gold.get("target") != got.get("target"):
+            return "wrong_target"
+        if gold != got:
+            return "semantic_mismatch"
+    return "semantic_mismatch"
+
+
 def score_semantics(
     benchmark_item: dict,
     planned_actions: list[dict] | None,
@@ -39,47 +61,50 @@ def score_semantics(
 
     if label == "REJECT_UNCERTAIN":
         if uncertainty_result and uncertainty_result.uncertain and not planned:
-            return SemanticScore(1.0, True, "none", "Correct uncertainty rejection")
+            return SemanticScore(1.0, True, "correct_reject", "Correct uncertainty rejection")
         if not planned:
-            return SemanticScore(0.5, True, "none", "Rejected without uncertainty evidence")
-        reason = "ambiguous_reference"
-        if uncertainty_result and "underspecified_motion" in uncertainty_result.reasons:
-            reason = "underspecified_motion"
-        return SemanticScore(0.0, False, reason, "Forced execution for uncertain command")
+            return SemanticScore(0.5, True, "correct_reject", "Rejected without uncertainty evidence")
+        return SemanticScore(0.0, False, "false_accept", "Forced execution for uncertain command")
 
     if label == "REJECT_UNSUPPORTED":
         if not planned:
-            return SemanticScore(1.0, True, "none", "Correct unsupported-intent rejection")
-        return SemanticScore(0.0, False, "unsupported_intent", "Forced execution of unsupported intent")
+            return SemanticScore(1.0, True, "correct_reject", "Correct unsupported-intent rejection")
+        return SemanticScore(0.0, False, "false_accept", "Forced execution of unsupported intent")
 
     if label == "EXECUTE_EXACT":
-        if not planned:
-            return SemanticScore(0.0, False, "over_rejection", "Expected execution but rejected")
+        if planned_actions is None or not isinstance(planned_actions, list):
+            return SemanticScore(0.0, False, "malformed_or_unparseable_output", "Planner output is not a list")
+        if len(planned) == 0:
+            return SemanticScore(0.0, False, "false_reject", "Expected execution but plan is empty")
+        if len(planned) > len(gold_actions):
+            return SemanticScore(0.0, False, "unnecessary_extra_action", "More actions planned than gold")
+        if len(planned) < len(gold_actions):
+            return SemanticScore(0.0, False, "missing_action", "Fewer actions planned than gold")
 
-        if len(planned) != len(gold_actions):
-            return SemanticScore(0.0, False, "semantic_mismatch", "Action count mismatch")
+        all_match = all(_action_matches_exact(g, p) for g, p in zip(gold_actions, planned))
+        if all_match:
+            return SemanticScore(1.0, True, "exact_match", "Exact semantic match")
 
-        for gold, got in zip(gold_actions, planned):
-            if not _action_matches_exact(gold, got):
-                return SemanticScore(0.0, False, "semantic_mismatch", "Exact action semantics mismatch")
-
-        return SemanticScore(1.0, True, "none", "Exact semantic match")
+        failure = _first_failure_mode(gold_actions, planned)
+        return SemanticScore(0.0, False, failure, "Action semantics mismatch")
 
     if label == "EXECUTE_FLEXIBLE":
-        if not planned:
-            return SemanticScore(0.0, False, "over_rejection", "Expected flexible execution but rejected")
+        if planned_actions is None or not isinstance(planned_actions, list):
+            return SemanticScore(0.0, False, "malformed_or_unparseable_output", "Planner output is not a list")
+        if len(planned) == 0:
+            return SemanticScore(0.0, False, "false_reject", "Expected flexible execution but plan is empty")
 
         if planned == gold_actions:
-            return SemanticScore(1.0, True, "none", "Flexible command matched exactly")
+            return SemanticScore(1.0, True, "exact_match", "Flexible command matched exactly")
 
         if gold_actions and planned:
             gold_primary = gold_actions[0]
             got_primary = planned[0]
-            if got_primary.get("object") == gold_primary.get("object"):
+            if got_primary.get("object") is not None and got_primary.get("object") == gold_primary.get("object"):
                 return SemanticScore(
                     0.5,
                     True,
-                    "semantic_mismatch",
+                    "acceptable_equivalent",
                     "Partial semantic match with correct object",
                 )
 
