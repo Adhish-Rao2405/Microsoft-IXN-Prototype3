@@ -27,8 +27,11 @@
     "gold_intent": {
       "actions": [
         {
+          "action": "pick",
+          "object": "pill_box"
+        },
+        {
           "action": "place",
-          "object": "pill_box",
           "target": "tray"
         }
       ]
@@ -47,8 +50,11 @@
     "gold_intent": {
       "actions": [
         {
-          "action": "move",
-          "object": "gauze_pack",
+          "action": "pick",
+          "object": "gauze_pack"
+        },
+        {
+          "action": "place",
           "target": "left_zone"
         }
       ]
@@ -86,8 +92,11 @@
     "gold_intent": {
       "actions": [
         {
+          "action": "pick",
+          "object": "medicine_cup"
+        },
+        {
           "action": "place",
-          "object": "medicine_cup",
           "target": "handover_zone"
         }
       ]
@@ -106,7 +115,7 @@
     "gold_intent": {
       "actions": [
         {
-          "action": "open_gripper"
+          "action": "opengripper"
         }
       ]
     },
@@ -124,7 +133,7 @@
     "gold_intent": {
       "actions": [
         {
-          "action": "reset_robot"
+          "action": "reset"
         }
       ]
     },
@@ -138,14 +147,18 @@
     "command": "Describe the scene",
     "difficulty": "clear",
     "category": "scene_query",
-    "gold_label": "REJECT_UNSUPPORTED",
+    "gold_label": "EXECUTE_EXACT",
     "gold_intent": {
-      "actions": []
+      "actions": [
+        {
+          "action": "describescene"
+        }
+      ]
     },
     "uncertainty_expected": false,
-    "allowed_behavior": "reject_if_not_in_action_schema",
-    "semantic_pass_rule": "must_reject_scene_description_request",
-    "notes": "Clear but unsupported in manipulation action schema."
+    "allowed_behavior": "execute_if_schema_and_safety_valid",
+    "semantic_pass_rule": "must_describe_scene",
+    "notes": "Clear scene query supported by the active action schema."
   },
   {
     "id": "C09",
@@ -156,8 +169,11 @@
     "gold_intent": {
       "actions": [
         {
-          "action": "move",
-          "object": "tray",
+          "action": "pick",
+          "object": "tray"
+        },
+        {
+          "action": "place",
           "target": "right_zone"
         }
       ]
@@ -181,7 +197,6 @@
         },
         {
           "action": "place",
-          "object": "gauze_pack",
           "target": "tray"
         }
       ]
@@ -214,8 +229,11 @@
     "gold_intent": {
       "actions": [
         {
+          "action": "pick",
+          "object": "pill_box"
+        },
+        {
           "action": "place",
-          "object": "pill_box",
           "target": "handover_zone"
         }
       ]
@@ -262,8 +280,11 @@
     "gold_intent": {
       "actions": [
         {
+          "action": "pick",
+          "object": "medicine_cup"
+        },
+        {
           "action": "place",
-          "object": "medicine_cup",
           "target": "handover_zone"
         }
       ]

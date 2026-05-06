@@ -3,6 +3,7 @@ import json
 import pytest
 
 from src.eval.benchmark_loader import load_benchmark
+from src.schema.action_schema import validate_action_plan
 
 
 def test_load_benchmark_success() -> None:
@@ -10,6 +11,14 @@ def test_load_benchmark_success() -> None:
     assert len(items) == 30
     ids = {item["id"] for item in items}
     assert len(ids) == 30
+
+
+def test_benchmark_gold_intents_match_action_schema_contract() -> None:
+    items = load_benchmark("datasets/benchmark_v1.json")
+
+    for item in items:
+        result = validate_action_plan(item["gold_intent"])
+        assert result.valid is True, (item["id"], result.errors)
 
 
 def test_load_benchmark_missing_file() -> None:
