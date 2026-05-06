@@ -5,7 +5,7 @@ src/schema/action_schema.py
 
 ## Top-level Forms
 Accepted top-level forms:
-- Dict with actions key: {"actions": [...]} 
+- Dict with actions key: {"actions": [...]}
 - Direct list of action objects
 
 Rejected top-level forms include:
@@ -39,6 +39,18 @@ Rejected top-level forms include:
 - opengripper width is optional but must be numeric when present.
 - closegripper force is optional but must be numeric when present.
 - Unexpected keys are rejected.
+
+## moveee Audit Conclusion (Phase 3.4)
+- moveee is intentional in the current baseline.
+- It is implemented in schema validation and safety validation.
+- It is included in planner prompt vocabulary.
+- It is exercised by schema/safety tests.
+- It is not currently used by benchmark_v1.json gold_intents, which mostly use pick/place composition.
+
+Interpretation:
+- moveee is a supported low-level motion primitive.
+- pick/place remains the dominant benchmark expression layer.
+- No schema removal is performed in this phase.
 
 ## Validation Interface
 validate_action_plan(parsed) returns SchemaValidationResult:

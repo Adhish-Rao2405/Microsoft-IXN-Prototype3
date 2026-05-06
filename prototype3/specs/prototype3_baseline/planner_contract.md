@@ -14,6 +14,9 @@ SYSTEM_PROMPT currently enforces:
 - Action names aligned with active schema actions
 - No extra keys outside schema allowance
 
+Prompt vocabulary includes:
+- pick, place, moveee, opengripper, closegripper, describescene, reset
+
 ## Runtime Inputs
 - model_alias: supported aliases currently include qwen2.5-coder-0.5b and qwen2.5-coder-7b
 - device: default cpu
@@ -38,3 +41,6 @@ Planner maps transport/response/parse failures to explicit error codes, includin
 ## Determinism Controls
 - temperature is fixed at 0.0
 - max_tokens is fixed at 256
+
+## moveee Note
+The planner prompt exposes moveee because it is part of the active schema/safety contract. In the current benchmark corpus, most gold intents are represented with pick/place actions rather than moveee.
