@@ -263,7 +263,7 @@ def test_uncertain_plan_is_rejected_and_not_execution_eligible() -> None:
     forced_semantics = SemanticScore(
         score=1.0,
         passed=True,
-        failure_mode="none",
+        failure_mode="exact_match",
         notes="forced semantic pass",
     )
     forced_uncertainty = UncertaintyResult(
@@ -303,7 +303,7 @@ def test_unsafe_plan_is_rejected_and_not_execution_eligible() -> None:
     forced_semantics = SemanticScore(
         score=1.0,
         passed=True,
-        failure_mode="none",
+        failure_mode="exact_match",
         notes="forced semantic pass",
     )
     forced_uncertainty = UncertaintyResult(
@@ -353,3 +353,41 @@ def test_all_pass_plan_is_eligible_but_not_executed() -> None:
         assert entry["execution_eligible"] is True
         assert entry["executed"] is False
         assert entry["execution_success"] is False
+
+
+def test_all_records_have_semantic_failure_mode_field() -> None:
+    with _local_output_path("sem_field_presence") as output_path:
+        run_benchmark(
+            dataset_path="datasets/benchmark_v1.json",
+            output_path=str(output_path),
+            models=["fake_slm"],
+        )
+        entries = _load_entries(output_path)
+        for entry in entries:
+            assert "semantic_failure_mode" in entry
+
+
+def test_c01_fake_slm_semantic_failure_mode_is_exact_match() -> None:
+    with _local_output_path("c01_sem_mode") as output_path:
+        run_benchmark(
+            dataset_path="datasets/benchmark_v1.json",
+            output_path=str(output_path),
+            models=["fake_slm"],
+            command_ids=["C01"],
+        )
+        entry = _load_entries(output_path)[0]
+        assert entry["semantic_failure_mode"] == "exact_match"
+
+
+def test_c04_fake_slm_semantic_failure_mode_is_wrong_object() -> None:
+    with _local_output_path("c04_wrong_obj") as output_path:
+        run_benchmark(
+            dataset_path="datasets/benchmark_v1.json",
+            output_path=str(output_path),
+            models=["fake_slm"],
+            command_ids=["C04"],
+        )
+        entry = _load_entries(output_path)[0]
+        assert entry["schema_valid"] is True
+        assert entry["semantic_failure_mode"] == "wrong_object"
+        assert entry["rejected"] is True

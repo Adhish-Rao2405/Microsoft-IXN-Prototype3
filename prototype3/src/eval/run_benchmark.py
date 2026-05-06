@@ -233,6 +233,7 @@ def run_benchmark(
                 "uncertainty_reasons": uncertainty.reasons,
                 "uncertainty_score": uncertainty.score,
                 "semantic_score": semantic.score,
+                "semantic_failure_mode": semantic.failure_mode,
                 "rejected": decision.rejected,
                 "rejection_reasons": decision.rejection_reasons,
                 "execution_eligible": decision.execution_eligible,

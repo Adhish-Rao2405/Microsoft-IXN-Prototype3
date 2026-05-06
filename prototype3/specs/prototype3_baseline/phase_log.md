@@ -9,7 +9,7 @@ This folder records a manual Spec Kit-style baseline for Prototype 3 without int
 - Phase 3.4c: benchmark/schema alignment (commit adc922c)
 - Phase 3.4d: baseline specification documents (commit c6e6218)
 - Phase 3.4e: schema vocabulary audit and evaluation plan update (commit pending)
-- Phase 3.5: semantic scoring implementation and spec alignment (commit pending)
+- Phase 3.5: semantic scoring implementation and spec alignment (commit 94d0a59)
 
 ## Phase 3.5 Summary
 - Implemented deterministic semantic comparator in src/eval/scoring.py.
@@ -38,8 +38,17 @@ This folder records a manual Spec Kit-style baseline for Prototype 3 without int
   will not trigger acceptable_equivalent (object is None). Known gap; deferred to Phase 3.6.
 - pick+place equivalence not implemented: not documented in semantic_scoring_rules.md.
 
+## Phase 3.6 Summary
+- Added semantic_failure_mode field to the run_benchmark output record in src/eval/run_benchmark.py.
+- Field carries the Phase 3.5 scoring taxonomy token (exact_match, wrong_object, false_accept, etc.)
+  alongside the existing gate-level failure_mode field. The two fields serve distinct purposes and
+  must remain separate.
+- Updated two stale SemanticScore fixtures in tests/test_run_benchmark.py from failure_mode="none"
+  to failure_mode="exact_match" to match Phase 3.5 vocabulary.
+- Added three new tests: field presence, correct exact_match value (C01), wrong_object value (C04).
+
 ## Current Phase
-- Phase 3.5: complete — pending commit
+- Phase 3.6: complete — pending commit
 
 ## Phase 3.4 Audit Finding: moveee
 - moveee is present in schema validation, planner contract prompt, safety validation tests, and schema tests.
