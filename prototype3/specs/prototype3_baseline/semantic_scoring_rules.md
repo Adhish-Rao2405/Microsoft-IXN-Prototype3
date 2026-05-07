@@ -38,6 +38,12 @@ Planner output cannot be parsed as valid JSON action payload.
 ### unsupported_action
 Planner output uses an action outside the active schema vocabulary.
 
+### missing_action
+Fewer actions planned than the gold intent requires; one or more required steps are absent.
+
+### wrong_action
+Plan contains the correct number of actions but one or more action verbs differ from gold intent.
+
 ## Notes
 - Schema-valid does not imply semantically correct.
 - Rejection quality is evaluated with both false_accept and false_reject rates.

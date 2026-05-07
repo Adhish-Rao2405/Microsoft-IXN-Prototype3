@@ -510,3 +510,18 @@ def test_main_skips_comparison_csv_for_single_model_run(tmp_path, monkeypatch) -
     summaries_dir = tmp_path / "summaries"
     comparison_files = list(summaries_dir.glob("*_comparison.csv"))
     assert len(comparison_files) == 0
+
+
+def test_main_produces_evidence_pack_for_multi_model_run(tmp_path, monkeypatch) -> None:
+    from src.eval.run_benchmark import main as run_main
+
+    jsonl_path = tmp_path / "runs" / "evidence_run.jsonl"
+    jsonl_path.parent.mkdir(parents=True)
+    monkeypatch.setattr(
+        _sys,
+        "argv",
+        ["run_benchmark", "--commands", "C01", "--output", str(jsonl_path)],
+    )
+    run_main()
+
+    assert (tmp_path / "summaries" / "evidence_pack.json").exists()

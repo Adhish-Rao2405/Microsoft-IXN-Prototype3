@@ -13,6 +13,7 @@ from src.brain.foundry_planner import FoundryPlanner
 from src.brain.model_client import ModelClient, ModelRequest
 from src.brain.uncertainty import assess_uncertainty
 from src.eval.benchmark_loader import load_benchmark
+from src.eval.evidence import generate_evidence_pack
 from src.eval.metrics_logger import write_run_record, write_summary_csv, write_comparison_csv
 from src.eval.run_metadata import collect_run_metadata
 from src.eval.scoring import score_semantics
@@ -324,6 +325,14 @@ def main() -> None:
             comparison_path = summary_dir / (output_file.stem + "_comparison.csv")
             model_rows = write_comparison_csv(str(output_file), str(comparison_path))
             print(f"Comparison table written: {comparison_path} ({model_rows} models)")
+            pack = generate_evidence_pack(str(output_file), str(summary_dir))
+            print(f"Evidence pack written: {summary_dir / 'evidence_pack.json'}")
+            for model, rq4 in pack["rq4_summary"].items():
+                print(
+                    f"  {model}  FA={rq4['false_accept_rate']:.4f}"
+                    f"  FR={rq4['false_reject_rate']:.4f}"
+                    f"  CR={rq4['correct_reject_rate']:.4f}"
+                )
 
     sys.stdout.flush()
 

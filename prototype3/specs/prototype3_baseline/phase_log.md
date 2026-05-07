@@ -103,8 +103,27 @@ This folder records a manual Spec Kit-style baseline for Prototype 3 without int
 - tests/test_metrics_logger.py (+2 tests)
 - tests/test_run_benchmark.py (+2 tests)
 
+## Phase 3.10 Summary
+- Updated specs/prototype3_baseline/semantic_scoring_rules.md to include missing_action and
+  wrong_action categories (deferred Phase 3.5 taxonomy debt).
+- Added src/eval/evidence.py with generate_evidence_pack(jsonl_path, output_dir), including:
+  per-model aggregation reuse, by-difficulty and by-category breakdowns, RQ4 rejection-rate summary,
+  and exports for evidence_pack.json, evidence_by_difficulty.csv, evidence_by_category.csv.
+- Extended src/eval/run_benchmark.py main() to auto-write the Phase 3.10 evidence pack for
+  multi-model runs and print per-model FA/FR/CR summary lines.
+- Added tests/test_evidence.py: 4 tests (required keys, output files, rate bounds, missing file).
+- Added 1 test to tests/test_run_benchmark.py: evidence_pack.json is produced for multi-model CLI runs.
+- Full controlled-temp suite after Phase 3.10 changes: 157/157 passed, zero regressions.
+
+### Files changed
+- specs/prototype3_baseline/semantic_scoring_rules.md (+missing_action, +wrong_action)
+- src/eval/evidence.py (new)
+- src/eval/run_benchmark.py (multi-model evidence pack generation in main)
+- tests/test_evidence.py (new, 4 tests)
+- tests/test_run_benchmark.py (+1 evidence-pack CLI test)
+
 ## Current Phase
-- Phase 3.9: complete — pending commit
+- Phase 3.10: complete — pending commit
 
 ## Phase 3.4 Audit Finding: moveee
 - moveee is present in schema validation, planner contract prompt, safety validation tests, and schema tests.
