@@ -122,6 +122,19 @@ This folder records a manual Spec Kit-style baseline for Prototype 3 without int
 - tests/test_evidence.py (new, 4 tests)
 - tests/test_run_benchmark.py (+1 evidence-pack CLI test)
 
+### Foundry Local Evidence (qwen2.5-coder-0.5b, cpu)
+- Source run: results/runs/phase_3_10_evidence_foundry_alias_cpu_clean.jsonl (30 records)
+- Evidence pack generated at results/summaries/foundry_evidence/:
+  evidence_pack.json, evidence_by_difficulty.csv, evidence_by_category.csv
+- Model-level false accept rate: 12/30 (40.0%) — model produced plans for REJECT_* commands; pipeline false accept rate: 0/30 (0.0%) — rejection gate caught all 12.
+- Dissertation interpretation: The local model was often capable of producing schema-valid outputs,
+  but schema validity alone did not imply safe or correct task execution. Although 25/30 responses
+  were schema-valid, only 4/30 were execution eligible after semantic and rejection-before-execution
+  checks. Most importantly, the model produced 12 plans for commands that should have been rejected,
+  but the deterministic pipeline prevented all of them from becoming execution-eligible. This supports
+  the dissertation’s zero-trust planning argument: local LLM/SLM outputs should be treated as
+  untrusted proposals, not executable robot commands.
+
 ## Current Phase
 - Phase 3.10: complete — pending commit
 

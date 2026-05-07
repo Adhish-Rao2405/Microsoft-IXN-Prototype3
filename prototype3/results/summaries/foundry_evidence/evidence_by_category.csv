@@ -1,0 +1,10 @@
+category,model,total_records,schema_valid_count,schema_valid_rate,execution_eligible_count,execution_eligible_rate,false_accept_count,false_reject_count,correct_reject_count,mean_latency_ms
+handover,foundry:qwen2.5-coder-0.5b:cpu,1,1,1.0,0,0.0,0,0,0,2372.0
+motion,foundry:qwen2.5-coder-0.5b:cpu,1,1,1.0,0,0.0,1,0,0,2380.0
+multi_step,foundry:qwen2.5-coder-0.5b:cpu,1,1,1.0,0,0.0,0,0,0,2951.0
+object_manipulation,foundry:qwen2.5-coder-0.5b:cpu,5,4,0.8,1,0.2,0,0,1,2530.8
+object_selection,foundry:qwen2.5-coder-0.5b:cpu,3,2,0.6667,0,0.0,2,0,1,2382.7
+robot_control,foundry:qwen2.5-coder-0.5b:cpu,2,2,1.0,2,1.0,0,0,0,2002.5
+scene_query,foundry:qwen2.5-coder-0.5b:cpu,1,1,1.0,1,1.0,0,0,0,1893.0
+task_level,foundry:qwen2.5-coder-0.5b:cpu,4,2,0.5,0,0.0,2,0,2,2209.8
+zone_placement,foundry:qwen2.5-coder-0.5b:cpu,12,11,0.9167,0,0.0,7,0,1,2419.2

@@ -1,0 +1,186 @@
+{
+  "generated_at": "2026-05-07T11:19:55.377007+00:00",
+  "source_jsonl": "results\\runs\\phase_3_10_evidence_foundry_alias_cpu_clean.jsonl",
+  "total_records": 30,
+  "per_model": [
+    {
+      "model": "foundry:qwen2.5-coder-0.5b:cpu",
+      "total_records": 30,
+      "schema_valid_count": 25,
+      "schema_valid_rate": 0.8333,
+      "execution_eligible_count": 4,
+      "execution_eligible_rate": 0.1333,
+      "false_accept_count": 12,
+      "false_reject_count": 0,
+      "correct_reject_count": 5,
+      "mean_latency_ms": 2375.7
+    }
+  ],
+  "by_difficulty": [
+    {
+      "difficulty": "clear",
+      "model": "foundry:qwen2.5-coder-0.5b:cpu",
+      "total_records": 10,
+      "schema_valid_count": 10,
+      "schema_valid_rate": 1.0,
+      "execution_eligible_count": 4,
+      "execution_eligible_rate": 0.4,
+      "false_accept_count": 0,
+      "false_reject_count": 0,
+      "correct_reject_count": 0,
+      "mean_latency_ms": 2389.8
+    },
+    {
+      "difficulty": "high",
+      "model": "foundry:qwen2.5-coder-0.5b:cpu",
+      "total_records": 10,
+      "schema_valid_count": 7,
+      "schema_valid_rate": 0.7,
+      "execution_eligible_count": 0,
+      "execution_eligible_rate": 0.0,
+      "false_accept_count": 7,
+      "false_reject_count": 0,
+      "correct_reject_count": 3,
+      "mean_latency_ms": 2309.7
+    },
+    {
+      "difficulty": "moderate",
+      "model": "foundry:qwen2.5-coder-0.5b:cpu",
+      "total_records": 10,
+      "schema_valid_count": 8,
+      "schema_valid_rate": 0.8,
+      "execution_eligible_count": 0,
+      "execution_eligible_rate": 0.0,
+      "false_accept_count": 5,
+      "false_reject_count": 0,
+      "correct_reject_count": 2,
+      "mean_latency_ms": 2427.7
+    }
+  ],
+  "by_category": [
+    {
+      "category": "handover",
+      "model": "foundry:qwen2.5-coder-0.5b:cpu",
+      "total_records": 1,
+      "schema_valid_count": 1,
+      "schema_valid_rate": 1.0,
+      "execution_eligible_count": 0,
+      "execution_eligible_rate": 0.0,
+      "false_accept_count": 0,
+      "false_reject_count": 0,
+      "correct_reject_count": 0,
+      "mean_latency_ms": 2372.0
+    },
+    {
+      "category": "motion",
+      "model": "foundry:qwen2.5-coder-0.5b:cpu",
+      "total_records": 1,
+      "schema_valid_count": 1,
+      "schema_valid_rate": 1.0,
+      "execution_eligible_count": 0,
+      "execution_eligible_rate": 0.0,
+      "false_accept_count": 1,
+      "false_reject_count": 0,
+      "correct_reject_count": 0,
+      "mean_latency_ms": 2380.0
+    },
+    {
+      "category": "multi_step",
+      "model": "foundry:qwen2.5-coder-0.5b:cpu",
+      "total_records": 1,
+      "schema_valid_count": 1,
+      "schema_valid_rate": 1.0,
+      "execution_eligible_count": 0,
+      "execution_eligible_rate": 0.0,
+      "false_accept_count": 0,
+      "false_reject_count": 0,
+      "correct_reject_count": 0,
+      "mean_latency_ms": 2951.0
+    },
+    {
+      "category": "object_manipulation",
+      "model": "foundry:qwen2.5-coder-0.5b:cpu",
+      "total_records": 5,
+      "schema_valid_count": 4,
+      "schema_valid_rate": 0.8,
+      "execution_eligible_count": 1,
+      "execution_eligible_rate": 0.2,
+      "false_accept_count": 0,
+      "false_reject_count": 0,
+      "correct_reject_count": 1,
+      "mean_latency_ms": 2530.8
+    },
+    {
+      "category": "object_selection",
+      "model": "foundry:qwen2.5-coder-0.5b:cpu",
+      "total_records": 3,
+      "schema_valid_count": 2,
+      "schema_valid_rate": 0.6667,
+      "execution_eligible_count": 0,
+      "execution_eligible_rate": 0.0,
+      "false_accept_count": 2,
+      "false_reject_count": 0,
+      "correct_reject_count": 1,
+      "mean_latency_ms": 2382.7
+    },
+    {
+      "category": "robot_control",
+      "model": "foundry:qwen2.5-coder-0.5b:cpu",
+      "total_records": 2,
+      "schema_valid_count": 2,
+      "schema_valid_rate": 1.0,
+      "execution_eligible_count": 2,
+      "execution_eligible_rate": 1.0,
+      "false_accept_count": 0,
+      "false_reject_count": 0,
+      "correct_reject_count": 0,
+      "mean_latency_ms": 2002.5
+    },
+    {
+      "category": "scene_query",
+      "model": "foundry:qwen2.5-coder-0.5b:cpu",
+      "total_records": 1,
+      "schema_valid_count": 1,
+      "schema_valid_rate": 1.0,
+      "execution_eligible_count": 1,
+      "execution_eligible_rate": 1.0,
+      "false_accept_count": 0,
+      "false_reject_count": 0,
+      "correct_reject_count": 0,
+      "mean_latency_ms": 1893.0
+    },
+    {
+      "category": "task_level",
+      "model": "foundry:qwen2.5-coder-0.5b:cpu",
+      "total_records": 4,
+      "schema_valid_count": 2,
+      "schema_valid_rate": 0.5,
+      "execution_eligible_count": 0,
+      "execution_eligible_rate": 0.0,
+      "false_accept_count": 2,
+      "false_reject_count": 0,
+      "correct_reject_count": 2,
+      "mean_latency_ms": 2209.8
+    },
+    {
+      "category": "zone_placement",
+      "model": "foundry:qwen2.5-coder-0.5b:cpu",
+      "total_records": 12,
+      "schema_valid_count": 11,
+      "schema_valid_rate": 0.9167,
+      "execution_eligible_count": 0,
+      "execution_eligible_rate": 0.0,
+      "false_accept_count": 7,
+      "false_reject_count": 0,
+      "correct_reject_count": 1,
+      "mean_latency_ms": 2419.2
+    }
+  ],
+  "rq4_summary": {
+    "foundry:qwen2.5-coder-0.5b:cpu": {
+      "false_accept_rate": 0.4,
+      "false_reject_rate": 0.0,
+      "correct_reject_rate": 0.1667
+    }
+  }
+}
