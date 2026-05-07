@@ -13,7 +13,7 @@ from src.brain.foundry_planner import FoundryPlanner
 from src.brain.model_client import ModelClient, ModelRequest
 from src.brain.uncertainty import assess_uncertainty
 from src.eval.benchmark_loader import load_benchmark
-from src.eval.metrics_logger import write_run_record
+from src.eval.metrics_logger import write_run_record, write_summary_csv, write_comparison_csv
 from src.eval.run_metadata import collect_run_metadata
 from src.eval.scoring import score_semantics
 from src.schema.action_schema import validate_action_plan
@@ -286,6 +286,7 @@ def main() -> None:
 
     models = [args.model] if args.model else None
     commands = args.commands.split(",") if args.commands else None
+    selected_models = models or ["fake_slm", "fake_llm"]
 
     count = run_benchmark(output_path=args.output, models=models, command_ids=commands)
     print(f"Benchmark run complete. Records written: {count}")
@@ -296,8 +297,6 @@ def main() -> None:
         summary_dir = output_file.parent.parent / "summaries"
         summary_dir.mkdir(parents=True, exist_ok=True)
         csv_path = summary_dir / output_file.with_suffix(".csv").name
-        from src.eval.metrics_logger import write_summary_csv
-
         csv_rows = write_summary_csv(str(output_file), str(csv_path))
         print(f"CSV summary written: {csv_path} ({csv_rows} rows)")
 
@@ -320,6 +319,11 @@ def main() -> None:
                 f"Connection errors:   {conn_errors} / {count}  "
                 "<- Foundry Local not running?"
             )
+
+        if len(selected_models) > 1:
+            comparison_path = summary_dir / (output_file.stem + "_comparison.csv")
+            model_rows = write_comparison_csv(str(output_file), str(comparison_path))
+            print(f"Comparison table written: {comparison_path} ({model_rows} models)")
 
     sys.stdout.flush()
 

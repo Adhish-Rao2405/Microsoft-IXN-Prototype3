@@ -100,3 +100,44 @@ def test_write_summary_csv_row_count_matches_jsonl(tmp_path) -> None:
         reader = csv_mod.DictReader(f)
         rows = list(reader)
     assert len(rows) == 30
+
+
+def test_write_comparison_csv_column_order(tmp_path) -> None:
+    import csv as csv_mod
+    from src.eval.metrics_logger import write_comparison_csv
+
+    jsonl_path = tmp_path / "runs.jsonl"
+    records = [
+        {
+            "model": "model_a", "schema_valid": True, "execution_eligible": True,
+            "semantic_failure_mode": "exact_match", "latency_ms": 10,
+        },
+        {
+            "model": "model_b", "schema_valid": False, "execution_eligible": False,
+            "semantic_failure_mode": "false_accept", "latency_ms": 20,
+        },
+    ]
+    import json as _json
+    jsonl_path.write_text(
+        "\n".join(_json.dumps(r) for r in records) + "\n", encoding="utf-8"
+    )
+
+    csv_path = tmp_path / "comparison.csv"
+    write_comparison_csv(str(jsonl_path), str(csv_path))
+
+    with csv_path.open(encoding="utf-8") as f:
+        reader = csv_mod.DictReader(f)
+        assert list(reader.fieldnames) == [
+            "model", "total_records", "schema_valid_count", "schema_valid_rate",
+            "execution_eligible_count", "execution_eligible_rate",
+            "false_accept_count", "false_reject_count", "correct_reject_count",
+            "mean_latency_ms",
+        ]
+
+
+def test_write_comparison_csv_missing_file_raises(tmp_path) -> None:
+    from src.eval.metrics_logger import write_comparison_csv
+    with pytest.raises(ValueError, match="does not exist"):
+        write_comparison_csv(
+            str(tmp_path / "nonexistent.jsonl"), str(tmp_path / "out.csv")
+        )

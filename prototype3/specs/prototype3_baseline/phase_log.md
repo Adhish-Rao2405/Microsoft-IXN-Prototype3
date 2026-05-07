@@ -83,8 +83,28 @@ This folder records a manual Spec Kit-style baseline for Prototype 3 without int
 - src/eval/run_benchmark.py (CLI CSV auto-export + printed summary)
 - tests/test_run_benchmark.py (+2 CLI tests)
 
+## Phase 3.9 Summary
+- Added src/eval/comparison.py: aggregate_model_metrics() groups per-record JSONL by model
+  and computes 10 summary fields (counts, rates, false accept/reject, mean latency).
+- Added write_comparison_csv() to src/eval/metrics_logger.py.
+- Extended src/eval/run_benchmark.py main() to auto-export a per-model comparison CSV
+  (alongside the per-record CSV) when more than one model is in the run.
+- Added tests/test_comparison.py: 4 unit tests for aggregation logic.
+- Added 2 tests to tests/test_metrics_logger.py: comparison CSV column order, missing-file error.
+- Added 2 tests to tests/test_run_benchmark.py: comparison CSV produced for multi-model runs,
+  skipped for single-model runs.
+- Full controlled-temp suite after Phase 3.9 changes: 152/152 passed, zero regressions.
+
+### Files changed
+- src/eval/comparison.py (new)
+- src/eval/metrics_logger.py (add write_comparison_csv, module-level import)
+- src/eval/run_benchmark.py (add write_comparison_csv to imports, comparison export in main)
+- tests/test_comparison.py (new, 4 tests)
+- tests/test_metrics_logger.py (+2 tests)
+- tests/test_run_benchmark.py (+2 tests)
+
 ## Current Phase
-- Phase 3.8: complete — pending commit
+- Phase 3.9: complete — pending commit
 
 ## Phase 3.4 Audit Finding: moveee
 - moveee is present in schema validation, planner contract prompt, safety validation tests, and schema tests.
