@@ -1,0 +1,5 @@
+model,total_records,schema_valid_count,schema_valid_rate,execution_eligible_count,execution_eligible_rate,false_accept_count,false_reject_count,correct_reject_count,mean_latency_ms
+foundry:qwen2.5-0.5b:cpu,30,14,0.4667,2,0.0667,8,0,9,3616.5
+foundry:qwen2.5-1.5b:cpu,30,23,0.7667,3,0.1,10,0,7,8299.1
+foundry:qwen2.5-coder-0.5b:cpu,30,25,0.8333,4,0.1333,12,0,5,2921.7
+foundry:qwen2.5-coder-1.5b:cpu,30,28,0.9333,5,0.1667,15,0,2,8329.5

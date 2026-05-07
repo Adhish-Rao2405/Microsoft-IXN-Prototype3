@@ -1,0 +1,16 @@
+{
+  "timestamp_utc": "20260507T173055Z",
+  "git_commit_hash": "452a5090a118a1c975575a68311f69d83c92f0b4",
+  "dataset_path": "datasets/benchmark_v1.json",
+  "model": "foundry:qwen2.5-coder-1.5b:cpu",
+  "python_version": "3.12.10",
+  "os_name": "Windows",
+  "os_version": "10.0.26200",
+  "cpu_info": "AMD64 Family 25 Model 80 Stepping 0, AuthenticAMD",
+  "cpu_count": 16,
+  "ram_gb": null,
+  "planner_temperature": 0.0,
+  "planner_max_tokens": 256,
+  "planner_timeout_s": 30.0,
+  "foundry_endpoint": "http://127.0.0.1:49313"
+}
