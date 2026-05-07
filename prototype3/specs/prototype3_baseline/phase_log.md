@@ -153,34 +153,30 @@ This folder records a manual Spec Kit-style baseline for Prototype 3 without int
 
 ## Phase 3.11 Summary — RQ5 Multi-Model Comparison Evidence
 
-A clean RQ5 comparison run was completed using Foundry Local with the same 30-command benchmark
-and deterministic evaluation pipeline. Each model was evaluated using the same schema validation,
-semantic scoring, uncertainty assessment, safety validation, and rejection-before-execution gate.
+A clean four-model RQ5 comparison was completed using Foundry Local on CPU. The comparison used
+the same 30-command benchmark, deterministic sampling settings, schema validator, semantic scorer,
+uncertainty assessor, safety validator, and rejection-before-execution gate across all models.
 
-### Infrastructure changes in this phase
-- Expanded SUPPORTED_ALIASES in src/brain/foundry_planner.py from 2 to 27 entries to cover all
-  available Foundry Local models (qwen2.5-*, qwen3-*, phi-4-*, phi-3-*, deepseek-r1-*, mistral-*,
-  gpt-oss-20b). Previous runs failed with unknown_model_error for any alias not in the set.
-- Added --compare CLI mode to src/eval/run_benchmark.py: accepts multiple JSONL paths, merges
-  records, writes merged JSONL to results/runs/, comparison CSV to --output path, and evidence
-  pack to a sibling _evidence/ directory.
-- Added 3 tests to tests/test_run_benchmark.py covering compare mode:
-  merge+CSV, missing-file skip, and evidence pack generation.
-- Fixed pytest.ini: added tmp_path_retention_count=1 and tmp_path_retention_policy=failed to
-  prevent Windows basetemp permission errors on cleanup.
-- Full controlled-temp suite: 160/160 passed, zero regressions.
+Models included:
+- foundry:qwen2.5-coder-0.5b:cpu
+- foundry:qwen2.5-0.5b:cpu
+- foundry:qwen2.5-coder-1.5b:cpu
+- foundry:qwen2.5-1.5b:cpu
 
-### Canonical RQ5 artefacts
-- results/runs/rq5_qwen25_coder_05b_cpu.jsonl
-- results/runs/rq5_qwen25_05b_cpu.jsonl
-- results/runs/rq5_qwen25_coder_15b_cpu.jsonl
-- results/runs/rq5_qwen25_15b_cpu.jsonl
-- results/summaries/rq5_comparison.csv
-- results/summaries/rq5_comparison_evidence/evidence_pack.json
+phi-3-mini-4k:cpu was attempted but excluded because the run produced 30/30 Foundry connection
+errors. It was therefore treated as an infrastructure failure rather than valid model-output
+evidence.
 
-Note: phi-3-mini-4k and qwen3-1.7b were attempted but produced 30/30 Foundry connection errors
-(model not downloaded). Both contaminated files were deleted. The RQ5 comparison uses only
-the four Qwen 2.5 models with zero connection errors.
+### Headline RQ5 findings
+- Coder-tuned Qwen models achieved higher schema validity than general Qwen models at both
+  parameter scales.
+- Increasing model size improved schema validity but did not proportionally improve execution
+  eligibility.
+- The highest schema-validity model, qwen2.5-coder-1.5b:cpu, also had the highest model-level
+  false accept rate.
+- Pipeline false accept rate remained 0% across all four clean model runs.
+- CPU latency increased substantially for 1.5B models, with only marginal execution-eligibility
+  improvement.
 
 ### RQ5 Comparison Results (4 models, 30 commands each, CPU, temp=0.0, max_tokens=256)
 
@@ -191,14 +187,27 @@ the four Qwen 2.5 models with zero connection errors.
 | qwen2.5-coder-1.5b:cpu | 28/30 | 93.3% | 5/30 | 16.7% | 15 | 0 | 2 | 8329.5 |
 | qwen2.5-1.5b:cpu       | 23/30 | 76.7% | 3/30 | 10.0% | 10 | 0 | 7 | 8299.1 |
 
-RQ4 rates from comparison evidence pack:
+RQ4 rates (from rq5_comparison_evidence/evidence_pack.json):
 - qwen2.5-coder-0.5b:cpu  FA=40.0%  FR=0.0%  CR=16.7%
 - qwen2.5-0.5b:cpu        FA=26.7%  FR=0.0%  CR=30.0%
 - qwen2.5-coder-1.5b:cpu  FA=50.0%  FR=0.0%  CR= 6.7%
 - qwen2.5-1.5b:cpu        FA=33.3%  FR=0.0%  CR=23.3%
 
-Pipeline false accept rate: 0% across all four models. All model-level false accepts were
-caught by the deterministic rejection gate.
+### Canonical RQ5 artefacts
+- results/runs/rq5_qwen25_coder_05b_cpu.jsonl
+- results/runs/rq5_qwen25_05b_cpu.jsonl
+- results/runs/rq5_qwen25_coder_15b_cpu.jsonl
+- results/runs/rq5_qwen25_15b_cpu.jsonl
+- results/summaries/rq5_comparison.csv
+
+This completes the Prototype 3 RQ5 evidence layer.
+
+### Infrastructure changes in this phase
+- Expanded SUPPORTED_ALIASES in src/brain/foundry_planner.py from 2 to 27 entries.
+- Added --compare CLI mode to src/eval/run_benchmark.py.
+- Added 3 tests to tests/test_run_benchmark.py covering compare mode.
+- Fixed pytest.ini: tmp_path_retention_count=1, tmp_path_retention_policy=failed.
+- Full controlled-temp suite: 160/160 passed, zero regressions.
 
 ### Files changed
 - src/brain/foundry_planner.py (SUPPORTED_ALIASES expanded to 27 entries)
