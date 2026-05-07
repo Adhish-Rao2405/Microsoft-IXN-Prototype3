@@ -4,12 +4,17 @@ import argparse
 from datetime import datetime, timezone
 import json
 from dataclasses import dataclass
+import os
+from pathlib import Path
+import re
+import sys
 
 from src.brain.foundry_planner import FoundryPlanner
 from src.brain.model_client import ModelClient, ModelRequest
 from src.brain.uncertainty import assess_uncertainty
 from src.eval.benchmark_loader import load_benchmark
 from src.eval.metrics_logger import write_run_record
+from src.eval.run_metadata import collect_run_metadata
 from src.eval.scoring import score_semantics
 from src.schema.action_schema import validate_action_plan
 from src.brain.safety import validate_safety
@@ -143,6 +148,21 @@ def run_benchmark(
     records_written = 0
     for model in selected_models:
         planner = _build_planner(model)
+        safe_model = re.sub(r'[^\w.\-]', '_', model)
+        metadata = collect_run_metadata(
+            dataset_path=dataset_path,
+            model=model,
+            timestamp=timestamp,
+            foundry_endpoint=None if model in {"fake_slm", "fake_llm"} else os.getenv("FOUNDRY_LOCAL_BASE_URL", "http://127.0.0.1:8080"),
+            planner_temperature=None if model in {"fake_slm", "fake_llm"} else 0.0,
+            planner_max_tokens=None if model in {"fake_slm", "fake_llm"} else 256,
+            planner_timeout_s=None if model in {"fake_slm", "fake_llm"} else 30.0,
+        )
+        metadata_path = Path(output_path).parent / f"run_metadata_{timestamp}_{safe_model}.json"
+        metadata_path.parent.mkdir(parents=True, exist_ok=True)
+        metadata_path.write_text(
+            json.dumps(metadata, ensure_ascii=True, indent=2), encoding="utf-8"
+        )
         for item in items:
             command = item["command"]
 
@@ -221,6 +241,7 @@ def run_benchmark(
                 "command_text": command,
                 "difficulty": item["difficulty"],
                 "gold_label": item["gold_label"],
+                "category": item.get("category", ""),
                 "model": model,
                 "latency_ms": plan_result.planning_latency_ms,
                 "planning_latency_ms": plan_result.planning_latency_ms,
@@ -240,6 +261,7 @@ def run_benchmark(
                 "executed": False,
                 "execution_success": False,
                 "failure_mode": effective_failure,
+                "run_metadata_path": str(metadata_path),
             }
             write_run_record(output_path, record)
             records_written += 1
@@ -267,6 +289,39 @@ def main() -> None:
 
     count = run_benchmark(output_path=args.output, models=models, command_ids=commands)
     print(f"Benchmark run complete. Records written: {count}")
+
+    # Auto CSV export - write to results/summaries/ alongside JSONL
+    output_file = Path(args.output)
+    if count > 0 and output_file.exists():
+        summary_dir = output_file.parent.parent / "summaries"
+        summary_dir.mkdir(parents=True, exist_ok=True)
+        csv_path = summary_dir / output_file.with_suffix(".csv").name
+        from src.eval.metrics_logger import write_summary_csv
+
+        csv_rows = write_summary_csv(str(output_file), str(csv_path))
+        print(f"CSV summary written: {csv_path} ({csv_rows} rows)")
+
+        # Brief metrics summary
+        records = [
+            json.loads(line)
+            for line in output_file.read_text(encoding="utf-8").strip().splitlines()
+        ]
+        schema_valid = sum(1 for r in records if r.get("schema_valid"))
+        eligible = sum(1 for r in records if r.get("execution_eligible"))
+        conn_errors = sum(
+            1
+            for r in records
+            if r.get("failure_mode") == "foundry_connection_error"
+        )
+        print(f"Schema valid:        {schema_valid} / {count}")
+        print(f"Execution eligible:  {eligible} / {count}")
+        if conn_errors:
+            print(
+                f"Connection errors:   {conn_errors} / {count}  "
+                "<- Foundry Local not running?"
+            )
+
+    sys.stdout.flush()
 
 
 if __name__ == "__main__":

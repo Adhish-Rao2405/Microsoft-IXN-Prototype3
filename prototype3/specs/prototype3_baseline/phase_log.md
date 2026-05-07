@@ -8,8 +8,9 @@ This folder records a manual Spec Kit-style baseline for Prototype 3 without int
 - Phase 3.4b: deterministic rejection-before-execution gate (commit 8f7d0c5)
 - Phase 3.4c: benchmark/schema alignment (commit adc922c)
 - Phase 3.4d: baseline specification documents (commit c6e6218)
-- Phase 3.4e: schema vocabulary audit and evaluation plan update (commit pending)
+- Phase 3.4e: schema vocabulary audit and evaluation plan update (commit ad22a20)
 - Phase 3.5: semantic scoring implementation and spec alignment (commit 94d0a59)
+- Phase 3.6: semantic_failure_mode field in benchmark runner (commit e709ef9)
 
 ## Phase 3.5 Summary
 - Implemented deterministic semantic comparator in src/eval/scoring.py.
@@ -47,8 +48,43 @@ This folder records a manual Spec Kit-style baseline for Prototype 3 without int
   to failure_mode="exact_match" to match Phase 3.5 vocabulary.
 - Added three new tests: field presence, correct exact_match value (C01), wrong_object value (C04).
 
+## Phase 3.7 Summary
+- Added src/eval/run_metadata.py: collect_run_metadata() collects 14 reproducibility fields
+  (git commit hash, Python/OS/CPU info, psutil RAM, planner config, timestamps). Never raises.
+- Modified src/eval/run_benchmark.py: sidecar JSON (run_metadata_*.json) written per model loop;
+  "category" and "run_metadata_path" fields added to every run record;
+  model names sanitised with re.sub for Windows-safe filenames.
+- Modified src/eval/metrics_logger.py: added write_summary_csv(jsonl_path, csv_path) -> int
+  with fixed 14-column order; raises ValueError if JSONL does not exist.
+- Added tests/test_run_metadata.py: 4 new unit tests for metadata collection.
+- Added 2 tests to tests/test_run_benchmark.py: sidecar JSON creation, category/run_metadata_path fields.
+- Added 2 tests to tests/test_metrics_logger.py: CSV column order, missing-file error.
+- Full controlled-temp suite: 141/141 passed, zero regressions.
+
+### Files changed
+- src/eval/run_metadata.py (new)
+- src/eval/run_benchmark.py (add imports, sidecar write, record fields)
+- src/eval/metrics_logger.py (add write_summary_csv)
+- tests/test_run_metadata.py (new, 4 tests)
+- tests/test_run_benchmark.py (+2 tests)
+- tests/test_metrics_logger.py (+2 tests, updated import)
+
+## Phase 3.8 Summary
+- Updated src/eval/__main__.py to delegate module execution to run_benchmark.main().
+- Extended src/eval/run_benchmark.py main() to auto-export CSV summaries and print
+  a compact post-run metrics summary (records written, schema valid, execution eligible,
+  and connection errors when present).
+- Added two CLI-behavior tests in tests/test_run_benchmark.py:
+  test_main_produces_csv_alongside_jsonl and test_main_prints_summary_to_stdout.
+- Full controlled-temp suite after Phase 3.8 changes: 144/144 passed, zero regressions.
+
+### Files changed
+- src/eval/__main__.py (delegate to run_benchmark.main)
+- src/eval/run_benchmark.py (CLI CSV auto-export + printed summary)
+- tests/test_run_benchmark.py (+2 CLI tests)
+
 ## Current Phase
-- Phase 3.6: complete — pending commit
+- Phase 3.8: complete — pending commit
 
 ## Phase 3.4 Audit Finding: moveee
 - moveee is present in schema validation, planner contract prompt, safety validation tests, and schema tests.

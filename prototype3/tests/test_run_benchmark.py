@@ -2,6 +2,7 @@ from contextlib import contextmanager
 import json
 from pathlib import Path
 import shutil
+import sys as _sys
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -391,3 +392,83 @@ def test_c04_fake_slm_semantic_failure_mode_is_wrong_object() -> None:
         assert entry["schema_valid"] is True
         assert entry["semantic_failure_mode"] == "wrong_object"
         assert entry["rejected"] is True
+
+
+def test_run_creates_metadata_sidecar_json() -> None:
+    with _local_output_path("sidecar_json") as output_path:
+        run_benchmark(
+            dataset_path="datasets/benchmark_v1.json",
+            output_path=str(output_path),
+            models=["fake_slm"],
+            command_ids=["C01"],
+        )
+        sidecars = list(output_path.parent.glob("run_metadata_*.json"))
+        assert len(sidecars) == 1
+        meta = json.loads(sidecars[0].read_text(encoding="utf-8"))
+        assert meta["model"] == "fake_slm"
+        assert "git_commit_hash" in meta
+
+
+def test_all_records_have_run_metadata_path_and_category() -> None:
+    with _local_output_path("meta_path_cat") as output_path:
+        run_benchmark(
+            dataset_path="datasets/benchmark_v1.json",
+            output_path=str(output_path),
+            models=["fake_slm"],
+        )
+        entries = _load_entries(output_path)
+        assert len(entries) == 30
+        for entry in entries:
+            assert "run_metadata_path" in entry
+            assert entry["run_metadata_path"] != ""
+            assert "category" in entry
+            assert entry["category"] != ""
+
+
+def test_main_produces_csv_alongside_jsonl(tmp_path, monkeypatch) -> None:
+    from src.eval.run_benchmark import main as run_main
+
+    jsonl_path = tmp_path / "runs" / "test_run.jsonl"
+    jsonl_path.parent.mkdir(parents=True)
+    monkeypatch.setattr(
+        _sys,
+        "argv",
+        [
+            "run_benchmark",
+            "--model",
+            "fake_slm",
+            "--commands",
+            "C01",
+            "--output",
+            str(jsonl_path),
+        ],
+    )
+    run_main()
+
+    assert jsonl_path.exists()
+    csv_path = tmp_path / "summaries" / "test_run.csv"
+    assert csv_path.exists()
+
+
+def test_main_prints_summary_to_stdout(tmp_path, monkeypatch, capsys) -> None:
+    from src.eval.run_benchmark import main as run_main
+
+    jsonl_path = tmp_path / "runs" / "summary_test.jsonl"
+    jsonl_path.parent.mkdir(parents=True)
+    monkeypatch.setattr(
+        _sys,
+        "argv",
+        [
+            "run_benchmark",
+            "--model",
+            "fake_slm",
+            "--commands",
+            "C01",
+            "--output",
+            str(jsonl_path),
+        ],
+    )
+    run_main()
+    captured = capsys.readouterr()
+    assert "Records written" in captured.out
+    assert "Schema valid" in captured.out

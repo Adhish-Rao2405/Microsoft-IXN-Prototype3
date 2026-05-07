@@ -1,3 +1,5 @@
 from __future__ import annotations
 
-print("Prototype 3 evaluation scaffold ready")
+from src.eval.run_benchmark import main
+
+main()
