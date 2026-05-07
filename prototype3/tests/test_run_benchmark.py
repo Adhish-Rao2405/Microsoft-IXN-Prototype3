@@ -525,3 +525,99 @@ def test_main_produces_evidence_pack_for_multi_model_run(tmp_path, monkeypatch) 
     run_main()
 
     assert (tmp_path / "summaries" / "evidence_pack.json").exists()
+
+
+def test_main_compare_mode_merges_and_writes_csv(tmp_path, monkeypatch) -> None:
+    from src.eval.run_benchmark import main as run_main
+
+    runs_dir = tmp_path / "runs"
+    runs_dir.mkdir(parents=True)
+    jsonl_a = runs_dir / "run_a.jsonl"
+    jsonl_b = runs_dir / "run_b.jsonl"
+    run_benchmark(
+        dataset_path="datasets/benchmark_v1.json",
+        output_path=str(jsonl_a),
+        models=["fake_slm"],
+        command_ids=["C01"],
+    )
+    run_benchmark(
+        dataset_path="datasets/benchmark_v1.json",
+        output_path=str(jsonl_b),
+        models=["fake_llm"],
+        command_ids=["C01"],
+    )
+
+    csv_out = tmp_path / "summaries" / "merged.csv"
+    csv_out.parent.mkdir(parents=True)
+    monkeypatch.setattr(
+        _sys,
+        "argv",
+        ["run_benchmark", "--compare", str(jsonl_a), str(jsonl_b), "--output", str(csv_out)],
+    )
+    run_main()
+
+    assert csv_out.exists()
+    import csv as _csv
+    with csv_out.open(encoding="utf-8") as f:
+        rows = list(_csv.DictReader(f))
+    assert len(rows) == 2
+    assert {r["model"] for r in rows} == {"fake_slm", "fake_llm"}
+    # merged JSONL must land in runs/, not summaries/
+    assert (runs_dir / "merged.jsonl").exists()
+
+
+def test_main_compare_mode_missing_file_is_skipped(tmp_path, monkeypatch) -> None:
+    from src.eval.run_benchmark import main as run_main
+
+    runs_dir = tmp_path / "runs"
+    runs_dir.mkdir(parents=True)
+    jsonl_a = runs_dir / "run_a.jsonl"
+    run_benchmark(
+        dataset_path="datasets/benchmark_v1.json",
+        output_path=str(jsonl_a),
+        models=["fake_slm"],
+        command_ids=["C01"],
+    )
+
+    csv_out = tmp_path / "summaries" / "merged.csv"
+    csv_out.parent.mkdir(parents=True)
+    missing = runs_dir / "nonexistent.jsonl"
+    monkeypatch.setattr(
+        _sys,
+        "argv",
+        ["run_benchmark", "--compare", str(jsonl_a), str(missing), "--output", str(csv_out)],
+    )
+    run_main()  # must not raise
+    assert csv_out.exists()
+
+
+def test_main_compare_mode_writes_evidence_pack(tmp_path, monkeypatch) -> None:
+    from src.eval.run_benchmark import main as run_main
+
+    runs_dir = tmp_path / "runs"
+    runs_dir.mkdir(parents=True)
+    jsonl_a = runs_dir / "run_a.jsonl"
+    jsonl_b = runs_dir / "run_b.jsonl"
+    run_benchmark(
+        dataset_path="datasets/benchmark_v1.json",
+        output_path=str(jsonl_a),
+        models=["fake_slm"],
+        command_ids=["C01"],
+    )
+    run_benchmark(
+        dataset_path="datasets/benchmark_v1.json",
+        output_path=str(jsonl_b),
+        models=["fake_llm"],
+        command_ids=["C01"],
+    )
+
+    csv_out = tmp_path / "summaries" / "merged.csv"
+    csv_out.parent.mkdir(parents=True)
+    monkeypatch.setattr(
+        _sys,
+        "argv",
+        ["run_benchmark", "--compare", str(jsonl_a), str(jsonl_b), "--output", str(csv_out)],
+    )
+    run_main()
+
+    assert (tmp_path / "summaries" / "merged_evidence" / "evidence_pack.json").exists()

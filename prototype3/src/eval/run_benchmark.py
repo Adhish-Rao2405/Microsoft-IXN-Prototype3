@@ -143,6 +143,12 @@ def run_benchmark(
         wanted = {cid.strip() for cid in command_ids if cid.strip()}
         items = [item for item in items if item["id"] in wanted]
 
+    # Start each benchmark invocation with a fresh output file so summaries
+    # and comparison runs are not polluted by prior invocations.
+    out_path = Path(output_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text("", encoding="utf-8")
+
     selected_models = models or ["fake_slm", "fake_llm"]
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
@@ -283,7 +289,53 @@ def main() -> None:
         default="results/runs/benchmark.jsonl",
         help="Output JSONL path",
     )
+    parser.add_argument(
+        "--compare",
+        nargs="+",
+        default=None,
+        metavar="JSONL",
+        help="Merge multiple JSONL run files and produce a comparison CSV (use with --output for CSV path)",
+    )
     args = parser.parse_args()
+
+    # --compare mode: merge JSONL files and produce comparison CSV + evidence pack
+    if args.compare:
+        merged_lines: list[str] = []
+        for path in args.compare:
+            p = Path(path)
+            if not p.exists():
+                print(f"WARNING: JSONL file not found, skipping: {path}", file=sys.stderr)
+                continue
+            merged_lines.extend(
+                line for line in p.read_text(encoding="utf-8").strip().splitlines() if line.strip()
+            )
+        if not merged_lines:
+            print("ERROR: No records found in provided JSONL files.", file=sys.stderr)
+            sys.exit(1)
+
+        # Write merged JSONL to runs/ (not summaries/) to keep run records separate
+        csv_out = Path(args.output)
+        csv_out.parent.mkdir(parents=True, exist_ok=True)
+        runs_dir = csv_out.parent.parent / "runs"
+        runs_dir.mkdir(parents=True, exist_ok=True)
+        merged_jsonl = runs_dir / csv_out.with_suffix(".jsonl").name
+        merged_jsonl.write_text("\n".join(merged_lines) + "\n", encoding="utf-8")
+        print(f"Merged {len(merged_lines)} records from {len(args.compare)} files -> {merged_jsonl}")
+
+        rows = write_comparison_csv(str(merged_jsonl), str(csv_out))
+        print(f"Comparison CSV written: {csv_out} ({rows} models)")
+
+        evidence_dir = csv_out.parent / (csv_out.stem + "_evidence")
+        pack = generate_evidence_pack(str(merged_jsonl), str(evidence_dir))
+        print(f"Evidence pack written: {evidence_dir / 'evidence_pack.json'}")
+        for model, rq4 in pack["rq4_summary"].items():
+            print(
+                f"  {model}  FA={rq4['false_accept_rate']:.4f}"
+                f"  FR={rq4['false_reject_rate']:.4f}"
+                f"  CR={rq4['correct_reject_rate']:.4f}"
+            )
+        sys.stdout.flush()
+        return
 
     models = [args.model] if args.model else None
     commands = args.commands.split(",") if args.commands else None
@@ -316,9 +368,10 @@ def main() -> None:
         print(f"Schema valid:        {schema_valid} / {count}")
         print(f"Execution eligible:  {eligible} / {count}")
         if conn_errors:
+            endpoint = os.getenv("FOUNDRY_LOCAL_BASE_URL", "http://127.0.0.1:8080")
             print(
                 f"Connection errors:   {conn_errors} / {count}  "
-                "<- Foundry Local not running?"
+                f"<- Could not reach Foundry endpoint {endpoint}"
             )
 
         if len(selected_models) > 1:

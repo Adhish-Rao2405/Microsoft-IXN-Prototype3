@@ -135,6 +135,22 @@ This folder records a manual Spec Kit-style baseline for Prototype 3 without int
   the dissertation’s zero-trust planning argument: local LLM/SLM outputs should be treated as
   untrusted proposals, not executable robot commands.
 
+## Phase 3.10 Operational Notes (post-commit additions)
+- Added 25 model aliases to src/brain/foundry_planner.py SUPPORTED_ALIASES to enable GPU model
+  backends for RQ5 multi-model runs (qwen2.5-0.5b, qwen2.5-coder-1.5b, qwen2.5-1.5b, phi-4-mini,
+  qwen3-1.7b, and forward-looking Qwen3/Phi-4 variants).
+- Added --compare CLI mode to src/eval/run_benchmark.py main(): accepts multiple JSONL paths,
+  merges records, writes comparison CSV and evidence pack in one command. Merged JSONL written
+  to results/runs/; comparison CSV and evidence pack written to results/summaries/.
+- Added 3 tests to tests/test_run_benchmark.py: compare mode merges and writes CSV (with merged
+  JSONL in runs/), missing file is skipped without error, evidence pack is produced.
+- Full controlled-temp suite after operational additions: 160/160 passed, zero regressions.
+
+### Files changed
+- src/brain/foundry_planner.py (alias expansion)
+- src/eval/run_benchmark.py (--compare mode, merged JSONL path fix)
+- tests/test_run_benchmark.py (+3 compare-mode tests)
+
 ## Current Phase
 - Phase 3.10: complete — pending commit
 
