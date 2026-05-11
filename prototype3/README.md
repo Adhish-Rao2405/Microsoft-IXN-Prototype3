@@ -7,6 +7,7 @@ Prototype 3 is documented as the benchmark and local model-evaluation layer of t
 Additional dissertation-facing documentation is available in:
 
 * `docs/dissertation_evidence/prototype3_system_context.md`
+* `docs/dissertation_evidence/prototype3_summary.md`
 * `docs/dissertation_evidence/prototype3_io_contract.md`
 * `docs/dissertation_evidence/prototype3_benchmark_design.md`
 * `docs/dissertation_evidence/prototype3_evaluation_pipeline.md`
